@@ -11,10 +11,18 @@ namespace EvenSample
 {
     public static class SubscribeDataFromEvenGridSample
     {
+        /// <summary>
+        /// This need to be set in the Endpoint details to be triggered
+        /// </summary>
+        /// <param name="eventGridEvent"></param>
+        /// <param name="log"></param>
         [FunctionName("SubscribeDataFromEvenGridSample")]
         public static void Run([EventGridTrigger]EventGridEvent eventGridEvent, ILogger log)
         {
             log.LogInformation(eventGridEvent.Data.ToString());
+
+            // Save to database
+
         }
     }
 }

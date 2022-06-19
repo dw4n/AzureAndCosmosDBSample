@@ -7,6 +7,8 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.Azure.EventGrid.Models;
+using System.Collections.Generic;
 
 namespace EvenSample
 {
@@ -15,21 +17,33 @@ namespace EvenSample
         [FunctionName("SendDataToEvenHubSample")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [EventHub("user", 
+                Connection = "Evh-pdpazure-dan-send")]
+                IAsyncCollector<string> evenhubUser,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            try
+            {
+                string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
+                var data = JsonConvert.DeserializeObject<CosmosDBSample.Model.User>(requestBody);
 
-            string name = req.Query["name"];
+                var userData = new CosmosDBSample.Model.User()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = data.Name,
+                    Email = data.Email
+                };
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
+                await evenhubUser.AddAsync(JsonConvert.SerializeObject(userData));
+                log.LogInformation($"User ID : {userData.Id} Send to Evenhub.");
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
-
-            return new OkObjectResult(responseMessage);
+                return new OkObjectResult(userData);
+            }
+            catch (Exception ex)
+            {
+                return new BadRequestObjectResult(ex.Message);
+                throw;
+            }
         }
     }
 }

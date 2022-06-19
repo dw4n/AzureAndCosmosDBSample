@@ -7,29 +7,66 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Microsoft.Azure.EventGrid.Models;
+using Microsoft.Azure.EventGrid;
+using System.Collections.Generic;
 
 namespace EvenSample
 {
     public static class SendDataToEvenGridSample
     {
+        private static string KEY = Environment.GetEnvironmentVariable("EventGridKey");
+        private static string ENDPOINT = Environment.GetEnvironmentVariable("EventGridEndPoint");
+
+        /// <summary>
+        /// Send data with custom event using Azure Function
+        /// </summary>
+        /// <param name="req"></param>
+        /// <param name="log"></param>
+        /// <returns></returns>
         [FunctionName("SendDataToEvenGridSample")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            try
+            {
 
-            string name = req.Query["name"];
+                var subject = "Create/"; // can be other 
+                var evenType = "Model.User"; // namespace
+                var userData = new CosmosDBSample.Model.User()
+                    { 
+                        Id = Guid.NewGuid().ToString() 
+                    };
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            name = name ?? data?.name;
 
-            string responseMessage = string.IsNullOrEmpty(name)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {name}. This HTTP triggered function executed successfully.";
+                var eventData = new EventGridEvent()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    DataVersion = "1.0",
+                    EventTime = DateTime.UtcNow,
+                    Subject = subject,
+                    EventType = evenType,
+                    Data = JsonConvert.SerializeObject(userData)
+                };
 
-            return new OkObjectResult(responseMessage);
+                var topicHostName = new Uri(ENDPOINT).Host;
+                TopicCredentials topicCredentials = new TopicCredentials(KEY);
+                var theEVGClient = new EventGridClient(topicCredentials);
+
+                await theEVGClient.PublishEventsAsync(topicHostName, new List<EventGridEvent>
+                {
+                    eventData
+                });
+
+                return new OkObjectResult(eventData);
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
         }
     }
 }
