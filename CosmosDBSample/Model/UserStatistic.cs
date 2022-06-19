@@ -17,8 +17,14 @@ namespace CosmosDBSample.Model
         [JsonProperty("changeCounter")]
         public int ChangeCounter { get; set; }
 
+        [JsonProperty("createdBy")]
+        public string CreatedBy { get; set; }
+
         [JsonProperty("createdDate")]
         public DateTime CreatedDate { get; set; }
+
+        [JsonProperty("modifiedBy")]
+        public string ModifiedBy { get; set; }
 
         [JsonProperty("modifiedDate")]
         public DateTime ModifiedDate { get; set; }
